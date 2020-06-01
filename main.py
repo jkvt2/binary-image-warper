@@ -75,12 +75,13 @@ if __name__ == '__main__':
     log = regress_distortion(
         image=orig_image,
         target=target_distort_image,
-        max_steps=100,
+        max_steps=1000,
         descent_rate=1,
         mesh_regulariser_weight=1,
         mesh_regulariser_gaussian_sigma=3,
         sobel_kernel_size=15,
-        error_gaussian_sigma=1,)
+        error_gaussian_sigma=1,
+        return_logs=True)
     
     #checkboard for visualisation
     checkboard = np.zeros(orig_image.shape, dtype=np.float32)

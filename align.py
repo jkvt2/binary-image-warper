@@ -23,8 +23,28 @@ def regress_distortion(image, target,
                        mesh_regulariser_gaussian_sigma=2,
                        sobel_kernel_size=15,
                        error_gaussian_sigma=2,
-                       min_error=None,
-                       stopping_criterion='flatten'):
+                       stopping_criterion='flatten',
+                       return_logs=False):
+    '''
+    Regresses a dense mesh to transform *image* into *target*
+    
+    Parameters:
+        image (ndarray): binary 2d image that you want to warp into the target
+        target (ndarray): binary 2d image that you want *image* to be warped into
+        max_steps (int): maximum number of steps that the regressor will run before stopping (default: 100)
+        descent_rate (float): (default: 1)
+        mesh_regulariser_weight (float): how strongly the predicted mesh should conform to a regular mesh (default: 0.1)
+        mesh_regulariser_gaussian_sigma (int): this affects the size of a node's neighborhood for local warp (default:2)
+        sobel_kernel_size (int): (default: 15)
+        error_gaussian_sigma (int): (default: 2)
+        stopping_criterion (str): (default: flatten)
+        return_logs (bool): whether to return the complete log of each iteration step
+    
+    Returns:
+        distort_idx (tuple): (distort_idx_x, distort_idx_y) the x and y offsets defining the mesh
+        logs (list): if return_logs is True, this is returned. This is a list of tuples, with each tuple being \
+(distorted image, error signal, distort_idx_x, distort_idx_y,)
+    '''
     centroid_shift = get_centroid(target) - get_centroid(image)
     curr_distort_idx = np.stack([
         np.ones(image.shape) * centroid_shift[1],
@@ -34,7 +54,6 @@ def regress_distortion(image, target,
     filter_count = convolve2d(np.ones_like(image), conv_filter, mode='same')
     log = []
     for step_i in range(max_steps):
-        #TODO write stopping criterion
         curr_distort_img = distort(
             image,
             distort_idx=[curr_distort_idx[...,0], curr_distort_idx[...,1]],
@@ -55,6 +74,12 @@ def regress_distortion(image, target,
         # TODO implement gaussian based local tension
         curr_distort_idx += descent_rate * (error_reduction + \
                                 mesh_regulariser_weight * local_tension)
-    
         log += [(curr_distort_img.copy(), diff_img.copy(), curr_distort_idx[...,0].copy(), curr_distort_idx[...,1].copy())]
-    return log
+        if stopping_criterion == 'flatten':
+            #TODO implement stopping criterion here
+    if return_logs:
+        return curr_distort_idx, log
+    else:
+        return curr_distort_idx
+
+print(regress_distortion.__doc__)
