@@ -72,7 +72,7 @@ if __name__ == '__main__':
     plt.title('Desired Output')
     
     #regress the distortion
-    log = regress_distortion(
+    pred_distort_idx, log = regress_distortion(
         image=orig_image,
         target=target_distort_image,
         max_steps=1000,
@@ -96,7 +96,7 @@ if __name__ == '__main__':
     if len(log) > 5:
         disp = [(i,log[i]) for i in (np.arange(5)/4 * (len(log) - 1)).astype(int)]
     else:
-        disp = enumerate(log)
+        disp = list(enumerate(log))
     plt.figure()
     plt.subplot(1 + len(disp),5,1)
     plt.imshow(target_distort_image)

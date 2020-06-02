@@ -37,7 +37,9 @@ def regress_distortion(image, target,
         mesh_regulariser_gaussian_sigma (int): this affects the size of a node's neighborhood for local warp (default:2)
         sobel_kernel_size (int): (default: 15)
         error_gaussian_sigma (int): (default: 2)
-        stopping_criterion (str): (default: flatten)
+        stopping_criterion (str): 
+            flatten: stop when the exponential moving average graph has stopped decreasing
+            (default: flatten)
         return_logs (bool): whether to return the complete log of each iteration step
     
     Returns:
@@ -52,7 +54,8 @@ def regress_distortion(image, target,
     
     conv_filter = np.array([[0,1,0],[1,0,1],[0,1,0]])
     filter_count = convolve2d(np.ones_like(image), conv_filter, mode='same')
-    log = []
+    if stopping_criterion == 'flatten':errors = []
+    if return_logs:log = []
     for step_i in range(max_steps):
         curr_distort_img = distort(
             image,
@@ -65,6 +68,12 @@ def regress_distortion(image, target,
         
         diff_img = gaussian_filter(target, error_gaussian_sigma, mode='constant') - \
                    gaussian_filter(curr_distort_img, error_gaussian_sigma, mode='constant')
+        if stopping_criterion == 'flatten':
+            this_error = np.mean(np.square(target - curr_distort_img))
+            if step_i == 0:
+                last_error = this_error
+            errors += [.9 * last_error + .1 * this_error]
+            last_error = this_error
         
         error_reduction = diff_img[:,:,None] * sobel_grad
         local_tension = np.stack([convolve2d(
@@ -74,9 +83,12 @@ def regress_distortion(image, target,
         # TODO implement gaussian based local tension
         curr_distort_idx += descent_rate * (error_reduction + \
                                 mesh_regulariser_weight * local_tension)
-        log += [(curr_distort_img.copy(), diff_img.copy(), curr_distort_idx[...,0].copy(), curr_distort_idx[...,1].copy())]
+        if return_logs:
+            log += [(curr_distort_img.copy(), diff_img.copy(), curr_distort_idx[...,0].copy(), curr_distort_idx[...,1].copy())]
         if stopping_criterion == 'flatten':
-            #TODO implement stopping criterion here
+            if step_i > 10:
+                if np.mean(errors[-10:]) < last_error * 1.01:
+                    break
     if return_logs:
         return curr_distort_idx, log
     else:
