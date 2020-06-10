@@ -4,24 +4,21 @@ import numpy as np
 import cv2
 from scipy.ndimage import gaussian_filter
 
-def make_toy_image(
-        image_size=[100,80],
-        num_shapes=[3,8],
-        num_points=[3,6],
-        size=[10,30]):
-    image = np.zeros((80,100), dtype=np.float32)
+def make_toy_image():
+    scale=5
+    image = np.zeros((80 * scale,100 * scale), dtype=np.float32)
     cv2.fillPoly(image, [
         np.array([
             [15,30],
             [32,20],
             [60,37],
             [52,54],
-            [22,48]]),
+            [22,48]]) * scale,
         np.array([
             [82,10],
             [96,15],
             [82,60],
-            [70,54]])], 1)
+            [70,54]]) * scale], 1)
     return image
 
 def make_toy_distortion(
@@ -37,6 +34,8 @@ def make_toy_distortion(
     imshape = image.shape[:2]
     distortion_mag = [np.zeros(imshape, dtype=np.float32),
                       np.zeros(imshape, dtype=np.float32)]
+    seed_mag = seed_mag * max(imshape)/100
+    seed_size = tuple([i * max(imshape)/100 for i in seed_size])
     for i in range(2):
         for _ in range(num_seeds):
             new = np.zeros(imshape, dtype=np.float32)
@@ -46,7 +45,7 @@ def make_toy_distortion(
                 np.random.uniform(-seed_mag, seed_mag), -1)
             distortion_mag[i] += new
     distort_idx = [gaussian_filter(i, blur_sigma) + \
-                   np.random.normal(scale=j/10) for i,j in zip(distortion_mag, imshape)]
+                    np.random.normal(scale=j/10) for i,j in zip(distortion_mag, imshape)]
     distort_img = distort(image, distort_idx)
     return distort_img, distort_idx
 
@@ -75,22 +74,25 @@ if __name__ == '__main__':
     pred_distort_idx, log = regress_distortion(
         image=orig_image,
         target=target_distort_image,
-        max_steps=1000,
+        max_steps=100,
         descent_rate=1,
         mesh_regulariser_weight=1,
         mesh_regulariser_gaussian_sigma=3,
         sobel_kernel_size=15,
         error_gaussian_sigma=1,
-        return_logs=True)
+        return_logs=True,
+        num_scales=5)
     
     #checkboard for visualisation
     checkboard = np.zeros(orig_image.shape, dtype=np.float32)
     h,w = checkboard.shape
-    for i in range(h//8):
-        for j in range(w//8):
+    size = min(h,w)//8
+    for i in range(h//size):
+        for j in range(w//size):
             if j%2 == i%2:
                 continue
-            checkboard[i*8:i*8+8, j*8:j*8+8] = 1
+            checkboard[i*size:i*size+size,
+                       j*size:j*size+size] = 1
     
     #visualise progress
     if len(log) > 5:
